@@ -1,0 +1,221 @@
+---
+title: "ST362_A01"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+#Bring in functions from posted RMD file
+set.seed(2112)
+n <- 30
+sigma <- 1
+beta0 <- 1
+beta1 <- 5
+x <- runif(n, 0, 10)
+
+dgp <- function(x, beta0 = 1, beta1 = 5, 
+                sigma = 1) {
+    epsilon <- rnorm(length(x), mean = 0, sd = sigma)
+    y <- beta0 + beta1 * x
+    return(data.frame(x = x, y = y + epsilon))
+}
+
+set.seed(2112)
+mydata <- dgp(x = x, beta0 = beta0, beta1 = beta1,
+    sigma = sigma)
+```
+
+Q1)
+1.1) Done on iPad
+
+
+```{r}
+
+#1.2
+
+#Bring in some functions and variables from posted RMD files
+Sdotdot <- function(x, y) sum( (x - mean(x)) * (y - mean(y)) )
+Sxx <- Sdotdot(mydata$x, mydata$x)
+Sxy <- Sdotdot(mydata$x, mydata$y)
+Syy <- Sdotdot(mydata$y, mydata$y)
+b1 <- Sxy / Sxx
+
+set.seed(2112)
+n <- 30
+sigma <- 1
+beta0 <- 1
+beta1 <- 5
+x <- runif(n, 0, 10)
+
+dgp <- function(x, beta0 = 1, beta1 = 5, 
+                sigma = 1) {
+    epsilon <- rnorm(length(x), mean = 0, sd = sigma)
+    y <- beta0 + beta1 * x
+    return(data.frame(x = x, y = y + epsilon))}
+
+
+R <- 1000
+beta1s <- rep(NA, R)
+beta0s <- rep(NA, R)
+beta1s_mre <- rep(NA, R)
+beta0s_mre <- rep(NA, R)
+for (i in 1:R) {
+    new_data <- dgp(x, beta0 = beta0, beta1 = beta1, sigma = sigma)
+    Xi <- new_data$x
+    Yi <- new_data$y
+    Sxx <- Sdotdot(new_data$x, new_data$x)
+    Sxy <- Sdotdot(new_data$x, new_data$y)
+    beta1s[i] <- Sxy / Sxx
+    beta0s[i] <- mean(new_data$y) - b1 * mean(new_data$x)
+    beta1s_mre[i] <- (sum(1/Yi) * sum(Xi/(Yi^2)) - sum(Xi/Yi) * sum(1/(Yi^2))) / (sum(Xi/(Yi^2))^2 - sum((Xi)^2/(Yi)^2) * sum(1/(Yi^2)))
+    beta0s_mre[i] <- (sum(1/Yi)-beta1s_mre[i]*sum(Xi/Yi^2))/sum(1/Yi^2)
+}
+
+var(beta1s)
+var(beta1s_mre)
+beta1s_mre
+
+```
+```{r}
+#1.3
+set.seed(2112)
+n <- 30
+sigma <- 1
+beta0 <- 1
+beta1 <- 5
+x <- runif(n, 0, 10)
+dgp_heterogeneous <- function(x, beta0 = 1, beta1 = 50, sigma = 1) {
+y <- beta0 + beta1 * x
+epsilon <- rnorm(n, 0, sigma * abs(y)/5)
+return(data.frame(x = x, y = y + epsilon))
+}
+# Notice that the variance increases with larger y.
+# The average deviation y - hat(y) will also increase
+plot(dgp_heterogeneous(x))
+
+beta1s_het <- rep(NA, R)
+beta0s_het <- rep(NA, R)
+beta1s_mre_het <- rep(NA, R)
+beta0s_mre_het <- rep(NA, R)
+for (i in 1:R) {
+    new_data_het <- dgp_heterogeneous(x, beta0 = beta0, beta1 = beta1, sigma = sigma)
+    Xi <- new_data_het$x
+    Yi <- new_data_het$y
+    Sxx <- Sdotdot(new_data_het$x, new_data_het$x)
+    Sxy <- Sdotdot(new_data_het$x, new_data_het$y)
+    beta1s_het[i] <- Sxy / Sxx
+    beta0s_het[i] <- mean(new_data_het$y) - b1 * mean(new_data_het$x)
+    beta1s_mre_het[i] <- (sum(1/Yi) * sum(Xi/(Yi^2)) - sum(Xi/Yi) * sum(1/(Yi^2))) / (sum(Xi/(Yi^2))^2 - sum((Xi)^2/(Yi)^2) * sum(1/(Yi^2)))
+    beta0s_mre_het[i] <- (sum(1/Yi)-beta1s_mre_het[i]*sum(Xi/Yi^2))/sum(1/Yi^2)
+}
+
+#Means
+mean(beta1s_het)
+mean(beta1s_mre_het)
+
+#Standard Errors
+std.error <- function(x) sd(x) / sqrt(length(x))
+std.error(beta1s_het)
+std.error(beta1s_mre_het)
+
+```
+```{r}
+#1.4
+t.score1 = qt(p=0.15,df=998,lower.tail=FALSE) #t.score for an 85% confidence interval
+
+#Checking Confidence Intervals for Part 2)
+se_beta1_mre <- sd(beta1s_mre)/sqrt(length(beta1s_mre)) #Calculate SE for Beta1 MRE
+se_beta1_mse <- sd(beta1s)/sqrt(length(beta1s)) #Calculate SE for Beta1 MSE
+
+beta1s_mre_ci <- mean(beta1s_mre) + t.score1*se_beta1_mre*c(-1,1) #Build the confidence interval for Beta1 MRE (Non-Heterogeneous)
+beta1s_mse_ci <- mean(beta1s) + t.score1*se_beta1_mse*c(-1,1) #Build the confidence interval for Beta1 MSE (Non-Heterogeneous)
+
+#Checking confidence intervals for Part 3)
+
+se_beta1_mre_het <- sd(beta1s_mre_het)/sqrt(length(beta1s_mre_het)) #Calcute SE for Beta1 MRE
+se_beta1_mse_het <- sd(beta1s_het)/sqrt(length(beta1s_het)) #Calcualte SE for Beta1 MSE
+
+beta1s_mre_het_ci <- mean(beta1s_mre_het) + t.score1*se_beta1_mre_het*c(-1,1) #Build the confidence interval for Beta1 MRE (Heterogeneous)
+beta1s_mse_het_ci <- mean(beta1s_het) + t.score1*se_beta1_mse_het*c(-1,1) #Build the confidence interval for Beta1 MSE (Heterogeneous)
+
+
+
+#Checking width of confidence intervals for MSE and MRE (Non-Heterogeneous)
+beta1s_mre_ci[2]-beta1s_mre_ci[1]
+beta1s_mse_ci[2]-beta1s_mse_ci[1]
+
+#Checking width of confidence intervals for MSE and MRE (Heterogeneous)
+beta1s_mre_het_ci[2]-beta1s_mre_het_ci[1]
+beta1s_mse_het_ci[2]-beta1s_mse_het_ci[1]
+beta1s_mre_het_ci
+beta1s_mse_het_ci
+```
+1.4 Written)
+
+When we check the confidence intervals for Beta1_MSE and Beta1_MRE under the presumption that the error terms are N(0,sigma^2) we see that the confidence interval is narrower for the Beta1 estimate derived from minimizing the MSE. However, when we generate our data through the heterogeneous process under which the errors are not necessarily N(0,sigma^2) we see that the confidence interval is actually narrower for the Beta 1 derived from minimizing the MRE. This tells us that we cannot necessarily always go with the narrower confidence interval.
+
+
+
+2)
+
+```{r}
+#2.6
+
+data(cars) # already part of R
+cars_lm <- lm(dist ~ speed, data = cars)
+# The X matrix has a column of 1s for beta_0
+X <- model.matrix(cars_lm)
+head(X)
+# Calculation of the H matrix with linear algebra
+# Compare this code to the formula X(X^TX)^{-1}X^T
+H <- X %*% solve(t(X) %*% X) %*% t(X)
+dim(H) # Check that it's square so that the inverse makes sense
+# Create identity matrix
+I <- diag(nrow(H))
+# Part (3)
+# Check if H^TH=H
+# Check *within machine precision* - rounding errors happen,
+# so we cant just check t(H) %*% H == H
+all.equal(t(H) %*% H, H)
+all.equal((I - t(H))%*%(I-H),I-H)
+all.equal((I-H)%*%X,H%*%X-H%*%X)
+
+```
+3)
+
+```{r}
+
+# 3.1
+
+data(mtcars)
+#plot(mpg ~ am, data = mtcars)
+x = mtcars$am
+y = mtcars$mpg
+
+ai <- (x-mean(x))/sum((x-mean(x))^2)
+varB1hat <- sum((sd(y)^2)*ai^2)
+Beta1hat <- sum(ai*y)
+Beta0hat <- mean(y) - Beta1hat*mean(x)
+Beta1hat
+Beta0hat
+
+
+t.score = qt(p=0.15,df=30,lower.tail=FALSE)
+margin.error <- t.score*varB1hat
+lower.bound <- Beta1hat - margin.error
+upper.bound <- Beta1hat + margin.error
+
+c(lower.bound,upper.bound)
+
+#3.2
+
+a <- mtcars$mpg[mtcars$am == 0]
+m <- mtcars$mpg[mtcars$am == 1]
+
+t.test(a,m,mu=0,conf.level=0.95)
+```
+3.3)
+
+B1 can  be written as the mean of all the y's where x = 1 minus the mean of all the y's where x = 0. B0 is just the mean of y where x=0, this makes sense as it is literally the y-intercept

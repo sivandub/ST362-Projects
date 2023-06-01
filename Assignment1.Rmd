@@ -218,4 +218,4 @@ t.test(a,m,mu=0,conf.level=0.95)
 ```
 3.3)
 
-B1 can  be written as the mean of all the y's where x = 1 minus the mean of all the y's where x = 0. B0 is just the mean of y where x=0, this makes sense as it is literally the y-intercept
+B1 can  be written as the mean of all the y's where x = 1 minus the mean of all the y's where x = 0. B0 is just the mean of y where x=0, this makes sense as it is literally the y-intercept since  x = 0.

@@ -27,7 +27,7 @@ plot(x2,y)
 
 
 
-```{r pressure, echo=FALSE}
+```{r}
 #1.2
 Beta <- solve(t(X)%*%X)%*%(t(X)%*%y)
 Beta

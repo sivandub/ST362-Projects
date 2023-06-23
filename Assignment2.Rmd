@@ -23,6 +23,7 @@ X <- matrix(c(ones,x1,x2),ncol = 3)
 
 plot(x1,y)
 plot(x2,y)
+plot(x1,x2)
 ```
 
 

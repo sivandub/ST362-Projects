@@ -1,0 +1,37 @@
+---
+title: "Assignment 3"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Question 3)
+```{r}
+
+n <- 100  # Number of observations
+rho <- 0.8  # Autocorrelation coefficient
+
+errors <- numeric(n)  # Initialize the errors vector
+errors[1] <- 0  # Set the first error to 0
+
+set.seed(123)  # Set a seed for reproducibility
+
+for (t in 2:n) {
+  errors[t] <- rho * errors[t-1] + rnorm(1)
+}
+
+x <- 1:n  # Predictor variable
+y <- x + errors  # Response variable
+
+mymodel <- lm(y ~ x)
+
+library(stats)
+
+residuals <- resid(mymodel)
+pacf(residuals)
+
+```
+

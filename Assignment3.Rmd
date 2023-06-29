@@ -6,18 +6,39 @@ output: pdf_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+Question 2.4)
+```{r}
+library(broom)
+
+mymat <- cbind(matrix(runif(5 * 50), ncol = 5), rnorm(50))
+colnames(mymat) <- c(paste0("x", 1:5), "y")
+pairs(mymat)
+mylm <- lm(y ~ ., data = as.data.frame(mymat))
+
+# Set up important quantities
+X <- mymat[, 1:5]
+Xbar <- apply(X, 2, mean)
+hat_values <- hatvalues(mylm)
+
+#Euclidean Distance
+euc_dist <- sqrt(rowSums((X-Xbar)^2))
+euc_dist
+
+#Plotting hat values against distance to the mean
+plot(euc_dist, hat_values, xlab = "Distance to Mean", ylab = "Hat Values")
+```
 
 
 Question 3)
 ```{r}
 
 n <- 100  # Number of observations
-rho <- 0.8  # Autocorrelation coefficient
+rho <- 0.5  
 
 errors <- numeric(n)  # Initialize the errors vector
 errors[1] <- 0  # Set the first error to 0
 
-set.seed(123)  # Set a seed for reproducibility
+set.seed(500)  # Set a seed for reproducibility
 
 for (t in 2:n) {
   errors[t] <- rho * errors[t-1] + rnorm(1)

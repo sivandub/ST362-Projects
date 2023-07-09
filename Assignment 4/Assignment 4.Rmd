@@ -1,0 +1,101 @@
+---
+title: "Assignment 4"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Import Data
+
+```{r}
+#Import Data Set
+data <- read.csv("/Users/sivandubinsky/Documents/Uni/ST362 Master/ST362-Projects/Medical_insurance.csv")
+```
+# Exploratory Data Analysis
+
+Here, I am graphing the pairs of different numerical variables and trying to see if there is any clear correlation between any two variables. 
+
+```{r}
+pairs(data[c("age","bmi","children","charges")])
+```
+The two noticible paairs are bmi/charges and age/charges. As it seems like there are cohorts within those observations. Let's analyze bmi and charges and see if smoking is the differentiator. Let's also do the same for age
+
+```{r}
+plot(data$bmi,data$charges)
+plot(data$age,data$charges)
+```
+Here we can infer that age is not the major factor when determining medical charges. This is because people with the same age are broken down into three different charge levels. This means that there is some other major factor. Similarly, looking at the bmi/charges plot we can see two things.
+
+1. Charges seem to start increasing past a 30 bmi. This is also characterized as being obese
+2. There is a cohort of individuals who are consistently being charged more then the others. Having some epxerience in the insurance space, my hunch is that this has something to do with smokers. Lets  explore further and see whether being a smoker has a singificant impact on medical charges
+
+```{r}
+boxplot(charges ~ smoker, data = data,
+        xlab = "Smoker", ylab = "Charges",
+        main = "Charges Boxplot by Smoke")
+```
+Here we can see that in fact, smokers pay more in medical fees then non-medical fees. Lets look at our previous two plots again but this time we'll colour the points blue if the individual is a non-smoker and red if they are a smoker
+
+```{r}
+colours <- ifelse(data$smoker == "yes", "red", "blue")
+
+plot(data$bmi,data$charges,col=colours)
+plot(data$age,data$charges,col=colours)
+```
+From the data we can see that smoking has a significant impact on medical charges. Notice, that while smokers tend to have higher medical charges, smokers who are obese (bmi >= 30) have significantly higher medical charges. This is something we should keep in mind as we further analyze the data. Further, when comparing age to charges, it appears that the cohort made up entirely of smokers, by far has the highest medical expenses. This once again reassures me of the fact that smoking is a very important factor for determining medical charges. 
+
+
+#Applying a model
+
+First, lets look at a model with all predictors and see if the p-values can tell us anything about the significance of certain predictors
+
+```{r}
+model1 <- lm(charges~.,data=data)
+summary(model1)
+```
+Here we see that 
+
+- Sex is not having a significant impact on the model
+- The fact that someone lives in the northwest region does not have a significant impact. The other regions however do have some significance. Perhaps we can try creating a new variable which tells us if the person is in the southwest or south east.
+
+
+```{r}
+
+#A person is considered obese if their BMI is over 30. Lets create a new column that tells us if a person is obese or not
+
+data$obese <- ifelse(data$bmi >= 30, 1, 0)
+
+#Lets make male and female also binary 
+
+data$sex <- ifelse(data$sex == "Male", 1, 0)
+
+``` 
+
+
+```{r}
+
+#New model with obesity as a categorical variable, sex dropped
+model2<- lm(charges~age+obese+children+smoker+region,data=data)
+summary(model2)
+```
+```{r}
+#Consider that when people start to age, it is likely that their medical expense will go-up quicker than when they were younger.
+#Lets incorporate this into our model
+
+model3<- lm(charges~poly(age,2) + bmi +children + smoker + smoker*obese + region,data=data)
+summary(model3)
+
+library(ggplot2)
+
+data$prediction <- predict(model3, newdata = data)
+ggplot(data, aes(x = prediction, y = charges)) + 
+  geom_point(color = "orange", alpha = 0.7) + 
+  geom_abline(color = "blue") +
+  ggtitle("Prediction vs. Actual Values")
+
+```
+

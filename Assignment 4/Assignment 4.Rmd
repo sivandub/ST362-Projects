@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 #Import Data Set
-data <- read.csv("/Users/sivandubinsky/Documents/Uni/ST362 Master/ST362-Projects/Medical_insurance.csv")
+data <- read.csv("/Users/sivandubinsky/Documents/Uni/ST362 Master/ST362-Projects/Assignment 4/Medical_insurance.csv")
 ```
 # Exploratory Data Analysis
 
@@ -60,8 +60,7 @@ summary(model1)
 Here we see that 
 
 - Sex is not having a significant impact on the model
-- The fact that someone lives in the northwest region does not have a significant impact. The other regions however do have some significance. Perhaps we can try creating a new variable which tells us if the person is in the southwest or south east.
-
+- The fact that someone lives in the northwest region does not have a significant impact. The other regions however do have some significance. 
 
 ```{r}
 
@@ -69,33 +68,55 @@ Here we see that
 
 data$obese <- ifelse(data$bmi >= 30, 1, 0)
 
-#Lets make male and female also binary 
-
-data$sex <- ifelse(data$sex == "Male", 1, 0)
+data
 
 ``` 
 
 
 ```{r}
-
 #New model with obesity as a categorical variable, sex dropped
-model2<- lm(charges~age+obese+children+smoker+region,data=data)
+model2<- lm(charges~age+obese+children+smoker+SW_SE,data=data)
 summary(model2)
 ```
+Another assumption I would like to check is whether or not age should be polynomial, specifically quadratic This is because from personal experience, as age increases, the size of medical charges tends to go up as health problems become more serious. Further, looking at the data it is possible to say that there is a quadratic relationship between age and charges but it is not clear. Let's lets do a significance test and see what the relationship should be with charges.
+
+```{r}
+
+ggplot(data, aes(x = predict(lm(charges~age),data=data), y = charges)) + 
+  geom_point(color = "red", alpha = 0.7) + 
+  geom_abline(color = "black") +
+  ggtitle("Prediction vs. Actual Values")
+
+ggplot(data, aes(x=age, y=charges)) + 
+          geom_point() +
+          stat_smooth(method='lm', formula = y ~ poly(x,2), size = 1) + 
+          xlab('Age') +
+          ylab('Charges')
+
+```
+
+```{r}
+
+
+```
+
+
+
 ```{r}
 #Consider that when people start to age, it is likely that their medical expense will go-up quicker than when they were younger.
 #Lets incorporate this into our model
 
-model3<- lm(charges~poly(age,2) + bmi +children + smoker + smoker*obese + region,data=data)
+model3<- lm(charges~poly(age,2) + bmi + children + smoker + smoker*obese + region, data=data)
 summary(model3)
 
 library(ggplot2)
 
-data$prediction <- predict(model3, newdata = data)
-ggplot(data, aes(x = prediction, y = charges)) + 
-  geom_point(color = "orange", alpha = 0.7) + 
-  geom_abline(color = "blue") +
+ggplot(data, aes(x = predict(model3,data=data), y = charges)) + 
+  geom_point(color = "red", alpha = 0.7) + 
+  geom_abline(color = "black") +
   ggtitle("Prediction vs. Actual Values")
-
 ```
+## Final Model
+
+$$y = age^2 + bmi + children + smoker + region + smoker*obese$$
 

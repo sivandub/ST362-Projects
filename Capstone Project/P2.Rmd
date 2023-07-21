@@ -1,0 +1,84 @@
+---
+title: "ST362_Capston Part 2 of 1 "
+output: html_document
+---
+Group Member: Sivan, Alexandru, Alto, Sophia and Maria
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(corrgram)
+```
+
+
+```{r}
+data <- read.csv("/Users/sivandubinsky/Documents/Uni/ST362 Master/ST362-Projects/simulated_data.csv")
+```
+
+
+```{r}
+plot(data$height_cm,data$weight_lb)
+```
+Here we want to show that position is clearly a catagorical variable and the average points per game clearly differs in each position 
+
+```{r}
+boxplot(ppg~player_position,data=data)
+```
+```{r}
+corrgram(data,order=TRUE,upper.panel = panel.cor)
+```
+Here we can see that the only majorly correlated variables are height and weight, which is what we attempted to include in our data set. 
+
+```{r}
+model1 <- lm(ppg~.,data=data)
+
+fullmodel <- lm(ppg~.,data=full)
+
+# Find the standardized residuals
+stand_residuals <- rstandard(model1)
+
+# Identify the outliers observations
+outlier_observations<-stand_residuals[abs(stand_residuals) > 3]
+
+# Outlier_observations (hidden)
+
+#Plotting Residuals vs Fitted
+plot(model1,1)
+plot(fullmodel,1)
+
+summary(model1)
+```
+The variance appears to be stable
+This means the predicted values of points per game does not increase or decrease in different ranges of the predictor variables, which tells us that there is no heteroscedasticity. Additionally, we see that the residuals are centered very close to 0, which means that the estimators are almost entirely unbiased, and, on average, predicts the true value of ppg accurately. Both these things indicate that a linear model can be fitted to the dataset reliably. 
+However, we see that the magnitide of the negative residuals are, on average, significantly larger than the magnititude of the positive residuals. This is most likely because of the fact that the true model has a logarithmic predictor, so the linear model that R fits to the data set uses a smaller beta for that predictor. We will analyze this further by checking this plot with a logarthimic predictor and seeing how the variance changes.
+
+
+```{r}
+logmodel <- lm(ppg~guard + center +  forward +  height_cm + weight_lb + log(hours_warmup) + age +  college_ppg + salary + mpg + kardashian_curse,data = data)
+
+logmodel2 <- lm(ppg~log(hours_warmup),data=data)
+
+plot(logmodel,1)
+plot(logmodel2,1)
+
+anova(model1,logmodel)
+```
+In the first graph, we see that although the residuals are tiny (because the model is perfectly fitted), the magnitude of the positive and negative residuals are similar. When we fit a model using the logarthimic transformation as the only predictor, we see that the residuals are much larger, but the magnitude of the positive and negative residuals are the same. Thus, we can conclude that the reason that the magnitude of the negative residuals is larger in the linear model because the true model has a non-linear predictor.
+
+Additionaly, look at the anova test between model with hours_warmup as a log predictor vs non-log predictor, we can see that there is an extra sum of squares attributable to the log model. This means that there is more variance that can be explained by the log model than the non-log model, thus it would make sense to include it when building a model from scratch. 
+
+```{r}
+cooks_dist <- cooks.distance(model1)
+influential_observations<-cooks_dist[cooks_dist > 1]
+influential_observations
+```
+Given the fact that there are no influential observations. This means that if we were to take out any 1 point or small set of points from our data, our model would not be significantly impacted. Having no influential observations means that if we were to recreate this model multiple times using different datasets generated through the same process, then there would not be significant differences between the model. This is due to the fact that the although each dataset would comprise of different points, none of the points in any given data set would be influential enough to skew the model built on that dataset. Since the mean and distribution of the predictors would be similar each other under each generation, then we can conclude that this model us easily reproducible.
+
+# Additional Diagnosis
+
+- Autocorrelation for errors is a non-issue as our data is not time series. Thus, even if there is some autocorrelation, it has no meaning in the context of our data so it can be disregarded
+
+- Looking at different pairs of predictors to the response, we have diagnosed that there is no polynomial relationship. Thus there won't be any need to include a polynomial predictor in the model
+

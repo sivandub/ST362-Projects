@@ -1,19 +1,21 @@
 ---
 title: "Assignment 4"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
 ```
 
-# Import Data
+# Import Data (hidden)
 
-```{r}
+```{r, include=FALSE}
 #Import Data Set
 data <- read.csv("/Users/sivandubinsky/Documents/Uni/ST362 Master/ST362-Projects/Assignment 4/Medical_insurance.csv")
+data
 ```
 # Exploratory Data Analysis
 
@@ -22,34 +24,35 @@ Here, I am graphing the pairs of different numerical variables and trying to see
 ```{r}
 pairs(data[c("age","bmi","children","charges")])
 ```
-The two noticible paairs are bmi/charges and age/charges. As it seems like there are cohorts within those observations. Let's analyze bmi and charges and see if smoking is the differentiator. Let's also do the same for age
+The two noticeable pairs are bmi/charges and age/charges. As it seems like there are cohorts within those observations. 
 
 ```{r}
+par(mfrow=c(1,2))
 plot(data$bmi,data$charges)
 plot(data$age,data$charges)
 ```
 Here we can infer that age is not the major factor when determining medical charges. This is because people with the same age are broken down into three different charge levels. This means that there is some other major factor. Similarly, looking at the bmi/charges plot we can see two things.
 
 1. Charges seem to start increasing past a 30 bmi. This is also characterized as being obese
-2. There is a cohort of individuals who are consistently being charged more then the others. Having some epxerience in the insurance space, my hunch is that this has something to do with smokers. Lets  explore further and see whether being a smoker has a singificant impact on medical charges
+
+2. There is a cohort of individuals who are consistently being charged more then the others. Having some experience in the insurance space, my hunch is that this has something to do with smokers. Lets  explore further and see whether being a smoker has a significant impact on medical charges
 
 ```{r}
 boxplot(charges ~ smoker, data = data,
         xlab = "Smoker", ylab = "Charges",
         main = "Charges Boxplot by Smoke")
 ```
-Here we can see that in fact, smokers pay more in medical fees then non-medical fees. Lets look at our previous two plots again but this time we'll colour the points blue if the individual is a non-smoker and red if they are a smoker
-
+Here we can see that in fact, smokers pay more in medical fees then non-smokers. Lets look at our previous two plots again but this time we'll colour the points blue if the individual is a non-smoker and red if they are a smoker
 ```{r}
 colours <- ifelse(data$smoker == "yes", "red", "blue")
-
+par(mfrow=c(1,2))
 plot(data$bmi,data$charges,col=colours)
 plot(data$age,data$charges,col=colours)
 ```
 From the data we can see that smoking has a significant impact on medical charges. Notice, that while smokers tend to have higher medical charges, smokers who are obese (bmi >= 30) have significantly higher medical charges. This is something we should keep in mind as we further analyze the data. Further, when comparing age to charges, it appears that the cohort made up entirely of smokers, by far has the highest medical expenses. This once again reassures me of the fact that smoking is a very important factor for determining medical charges. 
 
 
-#Applying a model
+# Applying a model
 
 First, lets look at a model with all predictors and see if the p-values can tell us anything about the significance of certain predictors
 
@@ -62,50 +65,46 @@ Here we see that
 - Sex is not having a significant impact on the model
 - The fact that someone lives in the northwest region does not have a significant impact. The other regions however do have some significance. 
 
+Another thing I'd like to note is that there seems to be a strong relationship between smokers and people with a bmi over 30. Namely, we see a large jump in medical charges for smokers who have a bmi over 30. After some research, it appears that a bmi over 30 is indicative of obesity. Thus, I will create a new categorical variable that characterizes someone as obese vs not obese. Further, from the chart above there is a case to be made about obesity and smoking being interaction terms. We will include this in our model. 
+
 ```{r}
-
-#A person is considered obese if their BMI is over 30. Lets create a new column that tells us if a person is obese or not
-
 data$obese <- ifelse(data$bmi >= 30, 1, 0)
-
-data
-
 ``` 
 
+From the p-values of the full model, we have determined that sex does not play a major role in determining medical charges. Thus, we will drop it from the model.
 
 ```{r}
 #New model with obesity as a categorical variable, sex dropped
-model2<- lm(charges~age+obese+children+smoker+SW_SE,data=data)
+model2<- lm(charges~age+obese+children+smoker,data=data)
 summary(model2)
 ```
-Another assumption I would like to check is whether or not age should be polynomial, specifically quadratic This is because from personal experience, as age increases, the size of medical charges tends to go up as health problems become more serious. Further, looking at the data it is possible to say that there is a quadratic relationship between age and charges but it is not clear. Let's lets do a significance test and see what the relationship should be with charges.
+Here we can see that our model is a little bit better, but there are still other things I'd like to check. For example, whether or not age should be polynomial, specifically quadratic.This is because from personal experience, as age increases, the size of medical charges tends to go up as health problems become more serious. 
 
 ```{r}
 
-ggplot(data, aes(x = predict(lm(charges~age),data=data), y = charges)) + 
+library(gridExtra)
+
+a<-ggplot(data, aes(x = predict(lm(charges~age),data=data), y = charges)) + 
   geom_point(color = "red", alpha = 0.7) + 
   geom_abline(color = "black") +
-  ggtitle("Prediction vs. Actual Values")
+  ggtitle("Prediction vs. Actual Values") +
+  xlab('Age') +
+  ylab('Charges')
 
-ggplot(data, aes(x=age, y=charges)) + 
+b<-ggplot(data, aes(x=age, y=charges)) + 
           geom_point() +
-          stat_smooth(method='lm', formula = y ~ poly(x,2), size = 1) + 
-          xlab('Age') +
+          stat_smooth(method='lm', formula = y ~ poly(x,2), linewidth = 1) + 
+          xlab('Age^2') +
           ylab('Charges')
 
-```
-
-```{r}
-
+grid.arrange(a,b) 
 
 ```
+Looking at the plots, I believe it is fair to say that there is in fact a quadratic relationship but lets see if there is anything more we can say from an F-test. Referring to appendix figure 2 we can see that there isn't much significance in adding the polynomial term vs the linear term as we get a p-value > 0.05 (specifically, 0.07375). While the value is greater than 0.05, it is still fairly close. Given this fact and the fact that the graph does look slightly more quadratic than it does linear, mixed with my knowledge of real life, I will stick with having age as a quadratic predictor, I believe that for a larger sample my assertion would be true. 
 
-
+# Putting it all together
 
 ```{r}
-#Consider that when people start to age, it is likely that their medical expense will go-up quicker than when they were younger.
-#Lets incorporate this into our model
-
 model3<- lm(charges~poly(age,2) + bmi + children + smoker + smoker*obese + region, data=data)
 summary(model3)
 
@@ -115,8 +114,60 @@ ggplot(data, aes(x = predict(model3,data=data), y = charges)) +
   geom_point(color = "red", alpha = 0.7) + 
   geom_abline(color = "black") +
   ggtitle("Prediction vs. Actual Values")
+
 ```
-## Final Model
+# Outliers
+
+Now, lets look at the outliers in our data
+
+```{r}
+# Find the standardized residuals
+stand_residuals <- rstandard(model3)
+
+# Identify the outliers observations
+outlier_observations<-stand_residuals[abs(stand_residuals) > 3]
+
+# Outlier_observations (hidden)
+
+#Plotting Residuals vs Fitted
+plot(model3,1)
+
+```
+Looking at the residuals to predicted values, I can see that there are some outliers. While it may be tempting to drop those outliers it's not correct to do so as we don't know whether those are true outliers to the whole population. They may be just outliers to the specific sample and thus incorporating them into our model will give us a better predictive model for the whole population.
+
+Note: Refer to appendix figure 1 for influential points, calculated using cook's distance and high leverage. There are no influential points in our data however there are high leverage points. Similar to the outliers, we will not drop them as we cannot say that they are completely out of the ordinary for a population, however it is important to note that they exist  and have influence on our model.
+
+#Final Model
 
 $$y = age^2 + bmi + children + smoker + region + smoker*obese$$
+Overall, I think my model is fairly effective at predicting medical charges. I believe there is enough justification for the predictors I have chose to include. I tried to keep the report fairly concise and not include every possible interaction term but from exploration I found that including smoker*obese yields almost the same model as including other interaction terms with smokers. Furthermore, with an adjusted R^2 of 0.8645 I believe that my model accounts for much of the variance in the observations.
+
+# Appendix
+
+### Figure 1
+```{r}
+#Part c)
+# Find cook's distance 
+cooks_dist <- cooks.distance(model3)
+
+# Find the influential observations
+influential_observations<-cooks_dist[cooks_dist > 1]
+
+influential_observations
+# There is no influential observations in the dataset
+
+# Find the leverage value of each observation
+hat_values <- hatvalues(model3)
+
+threshold_lev <- (2*length(coef(model3))/length(hat_values))
+# The following code will identify the observations with high leverage and assign it to high_leverage variable
+high_leverage<-hat_values[hat_values> threshold_lev]
+
+high_leverage
+```
+
+### Figure 2
+```{r}
+anova(lm(charges~age,data=data),lm(charges~age+poly(age,2),data=data))
+```
 

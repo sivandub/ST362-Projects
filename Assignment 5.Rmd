@@ -1,0 +1,54 @@
+---
+title: "Assignment 5"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+install.packages("zoo")
+library(zoo)
+```
+
+```{r}
+url <- "https://raw.githubusercontent.com/DB7-CourseNotes/Case_Studies/main/Used_Car_Datasets/Germany_Used_Cars.csv"
+german_cars <- read.csv(url)
+
+# Do a little data cleaning
+
+# Switch entries like "10,9 l/100km" to "10.9"
+
+# Start by substituting (sub) " l/100km" with an empty string to delete
+
+german_cars$fuel_consumption_l_100km <- gsub(pattern = " l/100 km", replacement = "", x = german_cars$fuel_consumption_l_100km)
+
+# Now substitue commas for periods (fixed = TRUE since "." is special)
+
+german_cars$fuel_consumption_l_100km <- gsub(pattern = ",", replacement = ".", x = german_cars$fuel_consumption_l_100km, fixed = TRUE)
+# Make it numeric, with empty strings becoming NA (disregard warnings)
+
+german_cars$fuel_consumption_l_100km <- as.numeric(german_cars$fuel_consumption_l_100km)
+
+german_cars$year <- as.numeric(german_cars$year)
+german_cars$price_in_euro <- as.numeric(german_cars$price_in_euro)
+german_cars$registration_date <- as.yearmon(german_cars$registration_date, "%m/%Y")
+german_cars$power_kw <- as.numeric(german_cars$power_kw)
+german_cars$power_ps <- as.numeric(german_cars$power_ps)
+
+
+
+
+
+```
+
+```{r}
+head(german_cars)
+#pairs(german_cars[c("registration_date","year","price_in_euro","power_kw","power_ps","fuel_consumption_l_100km","mileage_in_km")])
+
+numeric_cols <- sapply(german_cars, is.numeric)
+cor(german_cars[numeric_cols],use = "complete.obs")
+
+```
+

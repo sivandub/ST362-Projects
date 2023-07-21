@@ -2,15 +2,12 @@
 title: "ST362_Capstone"
 output: html_document
 ---
-Group Member: Sivan, Alexandru, Alto, Sophia and Maria
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 We will be creating a data set to predict average points per game for an nba player based on 11 predictors
-
-We've uploaded the dataset alongside the corresponding to github: https://github.com/sivandub/ST362-Projects/blob/f6a82ca5f629650081f2f5bde6f5a76b7708cf1c/Capstone%20Project/simulated_data.csv
 
 ```{r}
 # Step 1: Simulate Predictors
@@ -27,7 +24,7 @@ height_cm <- rnorm(n, mean = 205, sd = 10) # Height in centimeters
 weight_lb <- 80 + (2/2.54) * height_cm + rnorm(n, mean = 0, sd = 10) # Weight in pounds
 
 # Generate other predictors
-hours_warmup <- rnorm(n,mean = 2, sd = 0.5) #Average hours spent warming up prior to a game
+hours_warmup <- rnorm(n,mean = 1) #Average hours spent warming up prior to a game
 age <- floor(rnorm(n, mean = 27, sd = 4)) # Age of the player
 college_ppg <- rnorm(n, mean = 8, sd = 3) # Average point-per-game during college career
 salary <- rnorm(n, mean = 20000000, sd = 500000) # Salary
@@ -38,6 +35,14 @@ kardashian_curse <- rbinom(n, size = 1, prob = 0.01) # Whether the player has da
 guard <- ifelse(player_position=="guard",1,0) 
 forward <- ifelse(player_position=="forward",1,0)
 center <- ifelse(player_position=="center",1,0)
+
+
+#Replace negative values with 0
+
+college_ppg[college_ppg < 0] <- 0
+mpg[mpg < 0] <- 0
+hours_warmup[hours_warmup < 0] <- 0
+salary[salary < 1000000] <- 1000000
 
 
 # Generate response variable
@@ -56,18 +61,16 @@ beta_10 <- 0.7
 beta_11 <- -20
 
 
-ppg <- beta_0 + beta_1 * guard + beta_2 * center + beta_3 * forward + beta_4 * height_cm + beta_5 * weight_lb + beta_6 * log(hours_warmup) + beta_7 * age + beta_8 * college_ppg + beta_9 * salary + beta_10 * mpg + beta_11 * kardashian_curse
+ppg <- beta_0 + beta_1 * guard + beta_2 * center + beta_3 * forward + beta_4 * height_cm + beta_5 * weight_lb + beta_6 * log(hours_warmup) + beta_7 * age + beta_8 * college_ppg + beta_9 * salary + beta_10 * mpg + beta_11 * kardashian_curse 
 
+# Make any observations who's ppg < 0 equal to 0.1, as it is likely that each player has at least scored a couple of points
 
-# Save Simulated Data
+ppg[ppg < 0] <- 0.1
 
+# Step 6: Save Simulated Data
 simulated_data <- data.frame(ppg, player_position, guard, forward, center, height_cm, weight_lb, age, salary, mpg, hours_warmup, college_ppg, kardashian_curse)
+write.csv(simulated_data, "simulated_data.csv", row.names = FALSE)
 
-#Drop all rows which have values that don't make sense
-
-simulated_data_clean <- subset(simulated_data, ppg > 0 & ppg <= 38 & mpg > 0 & college_ppg > 0 & hours_warmup >= 1 & hours_warmup <= 3 & salary > 1000000)
-
-write.csv(simulated_data_clean, "simulated_data.csv", row.names = FALSE)
 ```
 
 

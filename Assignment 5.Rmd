@@ -1,18 +1,25 @@
 ---
 title: "Assignment 5"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  markdown:
+    wrap: 72
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 ```{r}
-install.packages("zoo")
 library(zoo)
+library(corrgram)
+library(dplyr)
+library(ggplot2)
 ```
 
-```{r}
+# Part 1
+
+### 1)
+
+```{r include=FALSE}
 url <- "https://raw.githubusercontent.com/DB7-CourseNotes/Case_Studies/main/Used_Car_Datasets/Germany_Used_Cars.csv"
 german_cars <- read.csv(url)
 
@@ -37,18 +44,346 @@ german_cars$registration_date <- as.yearmon(german_cars$registration_date, "%m/%
 german_cars$power_kw <- as.numeric(german_cars$power_kw)
 german_cars$power_ps <- as.numeric(german_cars$power_ps)
 
+# Deleting all rows whose fuel type is not one of the following (there are some random values in some rows)
 
-
-
-
+german_cars <- german_cars[german_cars$fuel_type %in% c("Petrol", "Diesel", "Hybrid", "LPG", "CNG", "Diesel Hybrid", "Electric", "Unknown", "Other"), ]
 ```
 
 ```{r}
-head(german_cars)
-#pairs(german_cars[c("registration_date","year","price_in_euro","power_kw","power_ps","fuel_consumption_l_100km","mileage_in_km")])
+# Continuous vs continuous
+corrgram(german_cars,order=TRUE,upper.panel = panel.cor)
 
-numeric_cols <- sapply(german_cars, is.numeric)
-cor(german_cars[numeric_cols],use = "complete.obs")
+ggplot(german_cars) +
+  aes(x = mileage_in_km, y = price_in_euro,
+      colour = year) +
+  geom_point()+ xlim(0, 500000) + ylim(0, 100000)
+```
+
+-   Power_ps and power_kw are perfectly positively correlated, we can
+    remove one of them as they contain the same information just in
+    different units
+
+-   Strong negative correlation between mileage_in_km and year. This
+    makes sense as newer cars would have driven less.
+
+-   Price and power_kw/power_ps have perfect positive correlation. They
+    are measuring the same thing in different units. Thus we only
+    consider one of them
+
+-   Price has gone up as years have gone up (inflation). Also newer cars
+    have depreciated in value less.
+
+-   Seems like most new cars are automatic and thus their price is
+    greater, also most cars are either manual or automatic so it seems
+    like it only makes sense to add year or transmission_type as they
+    appear to be related. Specifically, the most new cars have automatic
+    transmission so by only including year you are already "including"
+    the data associated with whether a car is automatic or manual.
+
+-   When plotting year vs price_in_euro its hard to see whether there is
+    strong correlation between any specific brand being significantly
+    more expensive then the rest, simply due to the fact that there are
+    so many car brands.
+
+-   Newer petrol cars seem to be more expensive than older ones
+
+```{r}
+#Continuous vs. Categorical
+ggplot(german_cars) +
+  aes(x = factor(fuel_type), y = price_in_euro) +
+  geom_boxplot() + ylim(0,500000)
 
 ```
 
+Form these plots I can assert the following:
+
+-   Transmission_type doesn't seem to change power_kw
+
+-   fuel_type doesn't seem to have an effect on power_kw
+
+-   It appears that certain colours do have a higher average price than
+    others
+
+-   Fuel_type doesn't seem to have an overall effect on price too much
+
+## Other Notes
+
+-   It appears that registration date and the car's year seem to be
+    basically the same aside from the month, thus it can be disregarded
+-   While some colors are more expensive on average, there is much less
+    of them than the generic colors so it doesn't make sense to assert
+    that a violet car is much more expensive than a black car, for
+    instance, because there are only a couple violet cars. Thus, I will
+    not include it in the model.
+
+### 2)
+
+The following relationships will definitely be important:
+
+-   Brand: Certain brands are generally more expensive so it matters
+    what brand the car is
+
+-   Year: The age of the car has a big impact on price, more
+    specifically a non-linear impact. As cars age they start to drop off
+    in price faster and faster
+
+-   Power_kw: Cars that that have more powerful engines are either a)
+    larger or b) more premium. In either case they will cost more
+
+-   Mileage: A car with more miles on it will be worth less (almost
+    always)
+
+-   Fuel Type: Certain fuel types such as diesel hybrid or electric tend
+    to be more expensive, albeit there aren't as many observations as
+    petrol or diesel cars it is still important to include.
+
+-   Brand \* Power_kw: It seems like there is a relationship between
+    power_kw and brand. While this is hard to see through simply
+    graphing the data, intuitively it makes sense. Specifically, for a
+    brand, a bigger car will have a bigger engine and thus be more
+    powerful, bigger cars are expensive. Alternatively, if a car brand
+    sells "luxury" cars they tend to have more premium engines and thus
+    be more powerful, as such they are more expensive.
+
+#### From the observations above my model suggestion is:
+
+$$Price = Brand + Year^2 + Power_{kw} + Mileage +  Fuel{\ }Type + Brand * Power_{kw} $$
+
+### 3)
+
+## Model 1
+
+```{r}
+model1 <- lm(price_in_euro ~ brand + fuel_type + poly(year,2) + power_kw + mileage_in_km + power_kw*brand, data=german_cars)
+plot(model1)
+summary(model1)
+```
+
+Analyzing our model, we get an $R^2$ of 0.654 indicating that \~65% of
+the variance in our residuals can be explained by our line. This is
+indicative of a good model. After adding the other predictors like
+colour, and anova testing for extra sum of squares I was unable to find
+any additional information to include in the model.
+
+#### Residuals and Cook's Distance
+
+```{r}
+residuals <- rstandard(model1)
+residuals_outliers <- residuals[residuals > 3 | residuals < -3]
+residuals_2.5 <- residuals[residuals > 2.5 | residuals < -2.5]
+residuals_2 <- residuals[residuals > 2 | residuals < -2]
+
+100 * (length(residuals_outliers) / length(residuals))
+100 * (length(residuals_2.5) / length(residuals))
+100 * (length(residuals_2) / length(residuals))
+cooks_distance <- cooks.distance(model1)
+
+influential_observations <- cooks_distance[cooks_distance > 1]
+influential_observations
+```
+
+After analyzing the german_cars data for outliers using cook's distance,
+I have identified three outliers. After finding them in the data I have
+decided to remove them from the data as they seem to be irrelevant to
+the analysis I am conducting. The following code will do so and then
+re-fit the model.
+
+```{r}
+german_cars <- german_cars[-c(1510,93372,93513),]
+model1.2 <- lm(price_in_euro ~ brand + fuel_type + poly(year,2) + power_kw + mileage_in_km + power_kw*brand, data=german_cars)
+plot(model1.2)
+summary(model1.2)
+
+```
+
+## Plot Analysis:
+
+#### Residuals vs Fitted: 
+
+-   The residuals have a mean of zero which means that our model is not
+    over-predicting or under-predicting
+
+-   There is random scatter around the zero line which means that there
+    aren't any trends amongst the residuals - Based on the previous two
+    factors, I am confident that the model has captured most of the
+    trends in the data
+
+#### Normal Q-Q:
+
+-   The data is, for the most normally distributed aside for a couple
+    outliers
+
+#### Scale-Location:
+
+-   The line is not straight which means that the linearity assumption
+    isn't met, we would most likely need to transform some of the
+    predictors or response
+
+#### Residuals vs Leverage:
+
+-   There are some high-leverage points
+
+### 4)
+
+-   There is some information we can draw from our fitted model based on
+    the slope coefficients. For example, there are some car brands that
+    hold their value pretty well but some who don't. For example, Toyota
+    has a positive coefficient while Saab doesn't.
+
+-   In terms of the colours, as stated above, while there are colours
+    which appear to make cars more expensive there are far fewer data
+    points to conclude that a violet car or gold car is more expensive
+    than a black or white one. Thus it wasn't worth including the colour
+    variable in the model.
+
+-   Adding the luxury predictor does not seem to impact the model at
+    all, hence it could be removed.
+
+# Part 2
+
+```{r}
+library(dplyr)# dplyr needed for `case_when()`
+url2 <- paste0("https://raw.githubusercontent.com/DB7-CourseNotes/Case_Studies/main/",
+"Used_Car_Datasets/Belarus_Used_Cars.csv")
+belarus_cars <- read.csv(url2)
+# Replace entries with something that matches the other data set
+belarus_cars$transmission <- case_when(
+belarus_cars$transmission == "auto" ~ "Automatic",
+belarus_cars$transmission == "mechanics" ~ "Manual"
+)
+# Convert to same currency as other data
+belarus_cars$priceEuro <- 0.89 * belarus_cars$priceUSD
+
+#Change the "make" column name to "brand." This will be used to compare coefficients later
+belarus_cars$brand <- belarus_cars$make
+belarus_cars <- subset(belarus_cars, select = -"old_column_name")
+```
+
+### Part 1) Graphs from previous part
+
+### Correlation between continuous variables {style="color:gray"}
+
+```{r}
+corrgram(belarus_cars,order=TRUE,upper.panel = panel.cor)
+```
+
+```{r}
+ggplot(belarus_cars) +
+  aes(x = mileage.kilometers., y = priceEuro, colour = factor(color)) + 
+  geom_point()
+```
+
+```{r}
+ggplot(belarus_cars) +
+  aes(x = year, y = priceEuro) + 
+  geom_point()
+```
+
+```{r}
+ggplot(belarus_cars) +
+  aes(x = volume.cm3., y = priceEuro) + 
+  geom_point()
+```
+
+```{r}
+ggplot(belarus_cars) +
+  aes(x = color, y=priceEuro) + 
+  geom_boxplot()
+```
+
+-   Plotting some of the graphs from part 1, alot of the patterns keep
+    re-appearing. For instance:
+
+    -   Older cars are generally cheaper
+    -   Cars with more mileage are cheaper
+    -   Manual cars are cheaper, which makes sense because they tend to
+        be older
+    -   Fuel-type doesn't seem to have a clear effect on price
+    -   Colour doesn't appear to affect price much
+    -   
+
+### Part 2) Fitting model to belarus_cars
+
+```{r,echo=FALSE}
+model2 <- lm(priceEuro ~ brand + poly(year,2) + mileage.kilometers. + volume.cm3. + volume.cm3.*brand,data=belarus_cars)
+summary(model2)
+```
+
+### Part 3) Comparing Models 1 and 2
+
+```{r}
+summary(model1.2)$adj.r
+summary(model2)$adj.r
+```
+
+#### Comparing the mileage variable
+
+```{r}
+summary(model1)$coefficients["mileage_in_km",]["Estimate"]
+summary(model2)$coefficients["mileage.kilometers.",]["Estimate"]
+```
+
+Comparing coefficients from the two models, shows that mileage is less
+significant in the belarus_cars fitted model.
+
+#### Comparing the quadratic year variable
+
+```{r}
+summary(model1)$coefficients["poly(year, 2)2",]["Estimate"]
+summary(model2)$coefficients["poly(year, 2)2",]["Estimate"]
+```
+
+Comparing the quadratic year variable, the coefficient in the first
+model is almost 3 times that of the second model.
+
+#### Comparing the power_kw and volume.cm3. coefficients
+
+```{r}
+summary(model1)$coefficients["power_kw",]["Estimate"]
+summary(model2)$coefficients["volume.cm3.",]["Estimate"]
+```
+
+I decided to use volume.cm3. in place of power_kw as I believe they can
+be a proxy for each other. The thinking behind this is that bigger cars
+(larger volume) will need more powerful engines.
+
+#### Comparing the brand coefficients that appear in both model
+
+```{r}
+
+coefficients_model1 <- coef(summary(model1))
+coefficients_model2 <- coef(summary(model2))
+common_predictors <- intersect(rownames(coefficients_model1), rownames(coefficients_model2))
+
+common_coefficients_model1 <- coefficients_model1[rownames(coefficients_model1) %in% common_predictors, ]
+common_coefficients_model2 <- coefficients_model2[rownames(coefficients_model2) %in% common_predictors, ]
+
+# Now we have the coefficients from both models for the common predictors.
+
+
+print(common_coefficients_model1)
+
+print(common_coefficients_model2)
+
+```
+
+### Interpretation of different coefficients: 
+
+-   An important thing to note regarding the magnitude of the different
+    coefficients is the sample size. As the belarus_cars data set is
+    around 4 times smaller than the german_cars data set, this could
+    lead to larger standard errors for the coefficient estimates, making
+    them less precise. This could result in smaller beta coefficients
+    with wider confidence intervals in the belarus_cars dataset.
+
+-   While it's hard to decipher why exactly there are such large
+    discrepancies between certain predictor coefficients there are some
+    reasonable guesses I can make:
+
+    -   The power_kw coefficient is significantly larger than the
+        volume.cm3. coefficient as the power of the engine could be
+        regarded as a much more important factor when purchasing a car.
+        After doing some research this does appear to be the case.
+
+    -   In terms of the other differences, I wasn't able to find any
+        reasonable explanations
